@@ -7,7 +7,6 @@
 #define IMC_SETCONVERSIONMODE 2
 #define IMC_GETOPENSTATUS 5
 #define IMC_SETOPENSTATUS 6
-#define IME_CMODE_OPENSTATUS 0x800
 
 namespace IME {
 	HWND GetFocusedWindow();
@@ -20,13 +19,14 @@ namespace IME {
 int main(int argc, char* argv[]) {
 	HWND hwnd = IME::GetFocusedWindow();
 	if (argc > 1) {
-		DWORD code;
-		code = atoi(argv[1]);
-		IME::SetOpenStatus(IME_CMODE_OPENSTATUS & code, hwnd);
-		IME::SetConversionMode(~IME_CMODE_OPENSTATUS & code, hwnd);
+		IME::SetOpenStatus(argv[1][0] != '0' ? TRUE : FALSE, hwnd);
+		if (argv[1][1] && argv[1][2]) {
+			DWORD mode = atoi(argv[1] + 2);
+			IME::SetConversionMode(mode, hwnd);
+		}
 	}
 	else {
-		std::cout << ((IME::GetOpenStatus(hwnd) ? IME_CMODE_OPENSTATUS : 0) | IME::GetConversionMode(hwnd));
+		std::cout << IME::GetOpenStatus(hwnd) << "-" << IME::GetConversionMode(hwnd);
 	}
 	return 0;
 }
