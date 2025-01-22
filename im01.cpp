@@ -1,5 +1,7 @@
+#include <tchar.h>
+#include <stdio.h>
+#include <getopt.h>
 #include <Windows.h>
-#include <iostream>
 
 #pragma comment(lib, "imm32")
 
@@ -8,59 +10,82 @@
 #define IMC_GETOPENSTATUS 5
 #define IMC_SETOPENSTATUS 6
 
-namespace IME {
-	HWND GetFocusedWindow();
-	BOOL GetOpenStatus(HWND hwnd);
-	void SetOpenStatus(BOOL status, HWND hwnd);
-	DWORD GetConversionMode(HWND hwnd);
-	void SetConversionMode(DWORD mode, HWND hwnd);
-};
+HWND GetFocusedWindow();
+BOOL GetOpenStatus(HWND hwnd);
+void SetOpenStatus(BOOL status, HWND hwnd);
+DWORD GetConversionMode(HWND hwnd);
+void SetConversionMode(DWORD mode, HWND hwnd);
 
-int main(int argc, char* argv[]) {
-	HWND hwnd = IME::GetFocusedWindow();
-	if (argc > 1) {
-		IME::SetOpenStatus(argv[1][0] != '0' ? TRUE : FALSE, hwnd);
-		if (argv[1][1] && argv[1][2]) {
-			DWORD mode = atoi(argv[1] + 2);
-			IME::SetConversionMode(mode, hwnd);
-		}
-	}
-	else {
-		std::cout << IME::GetOpenStatus(hwnd) << "-" << IME::GetConversionMode(hwnd);
-	}
-	return 0;
+void help();
+
+int _tmain(int argc, _TCHAR *argv[]) {
+    HWND hwnd = GetFocusedWindow();
+
+    const _TCHAR *optstring = TEXT("gs:");
+
+    int opt;
+    while ((opt = getopt(argc, argv, optstring)) != -1) {
+        switch (opt) {
+            case 'g':
+                _tprintf(TEXT("%d-%lu\n"), GetOpenStatus(hwnd), GetConversionMode(hwnd));
+                break;
+            case 's': {
+                DWORD status, mode;
+                int cnt = _stscanf_s(optarg, TEXT("%lu-%lu"), &status, &mode);
+                if (cnt > 0) {
+                    SetOpenStatus(!!status, hwnd);
+                    if (cnt > 1) {
+                        SetConversionMode(mode, hwnd);
+                    }
+                }
+            } break;
+            case '?':
+                help();
+                break;
+        }
+    }
+    if (optind <= 1) {
+        help();
+    }
+    return 0;
 }
 
-namespace IME {
-	HWND GetFocusedWindow() {
-		HWND foreHwnd = GetForegroundWindow();
-		if (foreHwnd != nullptr) {
-			GUITHREADINFO guiThreadInfo = {sizeof(GUITHREADINFO)};
-			if (GetGUIThreadInfo(GetWindowThreadProcessId(foreHwnd, nullptr), &guiThreadInfo)) {
-				return guiThreadInfo.hwndFocus ? guiThreadInfo.hwndFocus : foreHwnd;
-			}
-			return foreHwnd;
-		}
-		return nullptr;
-	}
+void help() {
+    _tprintf_s(TEXT(
+        "Options:\n"
+        "    -g    Get foreground window's IME status and conversion mode\n"
+        "    -s    Set foreground window's IME status and conversion mode\n"
+    ));
+}
 
-	BOOL GetOpenStatus(HWND hwnd) {
-		DWORD_PTR status;
-		SendMessageTimeoutW(ImmGetDefaultIMEWnd(hwnd), WM_IME_CONTROL, IMC_GETOPENSTATUS, 0, 0, 200, &status);
-		return status ? TRUE : FALSE;
-	}
+HWND GetFocusedWindow() {
+    HWND foreHwnd = GetForegroundWindow();
+    if (foreHwnd != NULL) {
+        GUITHREADINFO guiThreadInfo = {sizeof(GUITHREADINFO)};
+        if (GetGUIThreadInfo(GetWindowThreadProcessId(foreHwnd, NULL), &guiThreadInfo)) {
+            return guiThreadInfo.hwndFocus ? guiThreadInfo.hwndFocus : foreHwnd;
+        }
+        return foreHwnd;
+    }
+    return NULL;
+}
 
-	void SetOpenStatus(BOOL status, HWND hwnd) {
-		SendMessageTimeoutW(ImmGetDefaultIMEWnd(hwnd), WM_IME_CONTROL, IMC_SETOPENSTATUS, status, 0, 200, nullptr);
-	}
+BOOL GetOpenStatus(HWND hwnd) {
+    DWORD_PTR status;
+    SendMessageTimeoutW(ImmGetDefaultIMEWnd(hwnd), WM_IME_CONTROL, IMC_GETOPENSTATUS, 0, 0, 200, &status);
+    return status ? TRUE : FALSE;
+}
 
-	DWORD GetConversionMode(HWND hwnd) {
-		DWORD_PTR mode;
-		SendMessageTimeoutW(ImmGetDefaultIMEWnd(hwnd), WM_IME_CONTROL, IMC_GETCONVERSIONMODE, 0, 0, 200, &mode);
-		return mode;
-	}
+void SetOpenStatus(BOOL status, HWND hwnd) {
+    SendMessageTimeoutW(ImmGetDefaultIMEWnd(hwnd), WM_IME_CONTROL, IMC_SETOPENSTATUS, status, 0, 200, NULL);
+}
 
-	void SetConversionMode(DWORD mode, HWND hwnd) {
-		SendMessageTimeoutW(ImmGetDefaultIMEWnd(hwnd), WM_IME_CONTROL, IMC_SETCONVERSIONMODE, mode, 0, 200, nullptr);
-	}
+DWORD GetConversionMode(HWND hwnd) {
+    DWORD_PTR mode;
+    SendMessageTimeoutW(ImmGetDefaultIMEWnd(hwnd), WM_IME_CONTROL, IMC_GETCONVERSIONMODE, 0, 0, 200, &mode);
+    return mode;
+}
+
+void SetConversionMode(DWORD mode, HWND hwnd) {
+    SendMessageTimeoutW(ImmGetDefaultIMEWnd(hwnd), WM_IME_CONTROL, IMC_SETCONVERSIONMODE, mode, 0, 200, NULL);
 }
