@@ -1,0 +1,46 @@
+name: Build and Release
+
+on:
+  push:
+    tags: [ "v*.*.*" ]
+
+env:
+  SOLUTION_FILE_PATH: .
+  BUILD_CONFIGURATION: Release_MT
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+          vcpkgDirectory: '${{ runner.workspace }}/b/vcpkg'
+          vcpkgGitCommitId: 'c7961da7380ecdb92242c9dbc8ee1bca2105e335'
+
+    - name: Build
+      working-directory: ${{ github.workspace }}
+      run: |
+        msbuild /m "/p:Configuration=${{ env.BUILD_CONFIGURATION }};Platform=x64" ${{ env.SOLUTION_FILE_PATH }}
+        msbuild /m "/p:Configuration=${{ env.BUILD_CONFIGURATION }};Platform=x86" ${{ env.SOLUTION_FILE_PATH }}
+    
+    - name: Compression
+      run: |
+        7z a -tzip -mx9 -r ./x64/Release_MT/im01_x86_64.zip ./x64/Release_MT/im01.exe
+        7z a -tzip -mx9 -r ./Win32/Release_MT/im01_x86.zip ./Win32/Release_MT/im01.exe
+    
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          ./x64/Release_MT/im01_x86_64.zip
+          ./Win32/Release_MT/im01_x86.zip
