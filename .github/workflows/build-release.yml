@@ -5,8 +5,8 @@ on:
     tags: [ "v*.*.*" ]
 
 env:
-  SOLUTION_FILE_PATH: .
   BUILD_CONFIGURATION: Release_MT
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
 permissions:
   contents: read
@@ -21,23 +21,30 @@ jobs:
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
+    - name: Export GitHub Actions cache environment variables
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
       with:
-          vcpkgDirectory: '${{ runner.workspace }}/b/vcpkg'
-          vcpkgGitCommitId: 'c7961da7380ecdb92242c9dbc8ee1bca2105e335'
+          doNotCache: false
 
     - name: Build
       working-directory: ${{ github.workspace }}
       run: |
-        msbuild /m "/p:Configuration=${{ env.BUILD_CONFIGURATION }};Platform=x64" ${{ env.SOLUTION_FILE_PATH }}
-        msbuild /m "/p:Configuration=${{ env.BUILD_CONFIGURATION }};Platform=x86" ${{ env.SOLUTION_FILE_PATH }}
-    
+        vcpkg integrate install
+        msbuild /m "/p:Configuration=${{ env.BUILD_CONFIGURATION }};Platform=x64" .
+        msbuild /m "/p:Configuration=${{ env.BUILD_CONFIGURATION }};Platform=x86" .
+
     - name: Compression
       run: |
-        7z a -tzip -mx9 -r ./x64/Release_MT/im01_x86_64.zip ./x64/Release_MT/im01.exe
-        7z a -tzip -mx9 -r ./Win32/Release_MT/im01_x86.zip ./Win32/Release_MT/im01.exe
-    
+        7z a -tzip -mx9 ./x64/Release_MT/im01_x86_64.zip ./x64/Release_MT/im01.exe
+        7z a -tzip -mx9 ./Win32/Release_MT/im01_x86.zip ./Win32/Release_MT/im01.exe
+
     - name: Release
       uses: softprops/action-gh-release@v2
       with:
